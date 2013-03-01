@@ -1,0 +1,22 @@
+{
+  "name": "delaunay-fast",
+  "version": "0.0.0",
+  "description": "Fast Delaunay Triangulation in JavaScript",
+  "main": "delaunay.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ironwallaby/delaunay.git"
+  },
+  "keywords": [
+    "delaunay",
+    "triangulation",
+    "geometry"
+  ],
+  "author": "J. T. L.",
+  "license": "BSD",
+  "readmeFilename": "README.md",
+  "gitHead": "95feef2054313410efe336a1618699c4c96e507d"
+}
