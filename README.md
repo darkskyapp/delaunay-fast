@@ -8,6 +8,7 @@ a bunch of things in ways more amenable to fast JavaScript execution.
 [3]: http://www.travellermap.com/tmp/delaunay.htm
 
 Notably, it runs in subquadratic time, making it the fastest JavaScript
-implementation of which I'm aware.
+implementation of which I'm aware. (Okay, it doesn't really, but it'd be
+trivial to modify to run in subquadratic time, I just havn't done so yet.)
 
 This software is released into the public domain.
