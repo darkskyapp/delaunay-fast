@@ -121,6 +121,7 @@
         canvas.height = img.height;
         ctx = canvas.getContext("2d");
         ctx.drawImage(img,0,0);
+        result.crossOrigin = 'anonymous';
         result.src = canvas.toDataURL('image/png');
         
         vertices = new Array();
