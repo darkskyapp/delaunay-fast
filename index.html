@@ -1,39 +1,184 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <title>Delaunay Triangulation</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        font-family: sans-serif;
+        height: 100%;
+      }
+      .wrapper {
+        text-align: center;
+        position: relative;
+        height: 100%;
+      }
+      .wrapper .child {
+        display: inline-block;
+        vertical-align: middle;
+        zoom: 1;
+      }
+      .wrapper .helper {
+        display: inline-block;
+        height: 100%;
+        width: 0px;
+        vertical-align: middle;
+        zoom: 1;
+      }
+      .tools {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        width: 250px;
+        background-color: rgba(0,0,0,.45);
+        list-style: none;
+        margin: 10px;
+        padding: 10px 0 0 0;
+        color: white;
+      }
+      .button {
+        display: block;
+        cursor: pointer;
+        vertical-align: middle;
+        height: 3em;
+        line-height: 3em;
+        background-color: darkgrey;
+        text-align: center;
+      }
+      input[type=checkbox]:checked + .button { background-color: #3CB43C; }
+      .button:hover { background-color: black; }
+      .hints {
+        margin: 2em 0 0 0;
+        padding: 2em 0 2em 3em;
+        font-size: .75em;
+        background-color: rgba(255,255,0,.25);
+      }
+      .auth {
+        font-size: .75em;
+        color: silver;
+      }
+      a { color: silver; }
+      a:hover { color: lime; }
+    </style>
   </head>
-
   <body>
-    <canvas id="canvas" width="1024" height="1024">
-    </canvas>
-
+    <div class="wrapper">
+      <img src="Oleg_Dou_73.jpg" style="display:none" />
+      <img id="res_img" class="child" src="" />
+      <div class="helper"></div>
+    </div>
+    <div class="tools">
+      <input id="wire_b" type="checkbox" hidden /><label for="wire_b" class="button">Wireframe</label>
+      <br/>
+      <div style="padding-left:1em">
+        Opacity&nbsp;&nbsp;&nbsp;&nbsp;
+        <input id="opacity" type="range" min="0" max="100" value="100" style="width:140px;vertical-align:middle" />
+      </div>
+      <ol class="hints">
+        <li>Drag & Drop image</li>
+        <li>Place at least 3 vertices</li>
+        <li>Ctrl (Cmd) + Click to delete vertex</li>
+      </ol>
+      <ul class="auth">
+        <li>Made by <a href="mailto:netgoblin@ya.ru">netgoblin</a></li>
+        <li>Algorythm source code by <a href="https://github.com/ironwallaby/delaunay.git">J. T. L.</a></li>
+        <li>Triangulation theory by <a href="http://en.wikipedia.org/wiki/Delaunay_triangulation">B. Delaunay</a></li>
+        <li>Portrait image by <a href="olegdou.com">Oleg Dou</a></li>
+      </ul>
+    </div>
+    
     <script type="text/javascript" src="delaunay.js"></script>
     <script type="text/javascript">
-      var canvas = document.getElementById("canvas"),
-          ctx = canvas.getContext("2d"),
-          i = 2048,
-          vertices = new Array(i),
-          x, y
-
-      while(i) {
-        do {
-          x = Math.random() - 0.5
-          y = Math.random() - 0.5
-        } while(x * x + y * y > 0.25)
-
-        x = (x * 0.96875 + 0.5) * canvas.width
-        y = (y * 0.96875 + 0.5) * canvas.height
-
-        vertices[--i] = {x: x, y: y}
-      }
-
-      console.time("triangulate")
-      var triangles = triangulate(vertices)
-      console.timeEnd("triangulate")
-
-      i = triangles.length
-      while(i)
-        triangles[--i].draw(ctx)
+      var canvas = document.createElement("canvas"),
+          ctx = null,
+          img = document.createElement('img'),
+          vertices = new Array(),
+          triangles = null,
+          bWireframe = false,
+          opacity = 1,
+          result = document.getElementById('res_img');
+      
+      function update(){
+        // draw image
+        ctx.drawImage(img,0,0);
+        // draw mesh
+        for (var i = 0; i < triangles.length; i++){
+          var xc = (triangles[i].a.x + triangles[i].b.x + triangles[i].c.x)/3;
+              yc = (triangles[i].a.y + triangles[i].b.y + triangles[i].c.y)/3;
+          /*ctx.beginPath();
+          ctx.arc(xc,yc,3,0,2*Math.PI,true);
+          ctx.fillStyle = 'red';
+          ctx.fill();*/
+          var col = ctx.getImageData(xc,yc,1,1).data;
+          triangles[i].draw(ctx,'rgba('+col[0]+','+col[1]+','+col[2]+','+opacity+')',bWireframe);
+        }
+        // update result image
+        result.src = canvas.toDataURL('image/png');
+      };
+      img.addEventListener('load',function(e){
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx = canvas.getContext("2d");
+        ctx.drawImage(img,0,0);
+        result.src = canvas.toDataURL('image/png');
+        
+        vertices = new Array();
+        triangles = null;
+      });
+      img.src = document.images[0].src;
+      result.addEventListener('click',function(e){
+        e.preventDefault();
+        if (e.ctrlKey){
+          if (vertices.length <= 3) return false;
+          
+          var dmax = 10,
+              dist = 50, // distance
+              vi = -1; // index of the deleted vertex
+          for (var i = 0; i < vertices.length; i++){
+            dist = Math.sqrt(Math.pow(vertices[i].x - e.offsetX,2)+Math.pow(vertices[i].y - e.offsetY,2));
+            if (dist < dmax){
+              vertices.splice(i,1);
+              triangles = triangulate(vertices);
+              update();
+              return true;
+            }
+          }
+        }
+        else {
+          vertices.push({ x: e.offsetX, y: e.offsetY });
+          if (vertices.length < 3) return;
+          triangles = triangulate(vertices);
+          update();
+        }
+      });
+      document.getElementById('wire_b').addEventListener('click',function(){
+        bWireframe = !bWireframe;
+        update();
+      });
+      document.getElementById('opacity').addEventListener('change',function(){
+        opacity = this.value/100;
+        update();
+      });
+    
+      document.body.ondragover = function(e){ e.preventDefault(); };
+      document.body.ondragleave = function(){ return false; };
+      document.body.ondrop = function(e){
+        e.preventDefault();
+        if (window.File && window.FileReader && window.FileList){
+          var file = e.dataTransfer.files[0];
+          if (!file) return false;
+          var reader = new FileReader();
+          reader.onload = (function(file){
+            return function(e){
+              
+              img.src = e.target.result;
+            };
+          })(file);
+          reader.readAsDataURL(file);
+        }
+        return false;
+      };
     </script>
   </body>
 </html>
