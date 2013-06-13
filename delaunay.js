@@ -14,7 +14,7 @@ function Triangle(a, b, c) {
 
   /* If the points of the triangle are collinear, then just find the
    * extremes and use the midpoint as the center of the circumcircle. */
-  if(Math.abs(G) < 0.000001) {
+  if (Math.abs(G) < 0.000001) {
     minx = Math.min(a.x, b.x, c.x)
     miny = Math.min(a.y, b.y, c.y)
     dx   = (Math.max(a.x, b.x, c.x) - minx) * 0.5
@@ -34,14 +34,18 @@ function Triangle(a, b, c) {
   }
 }
 
-Triangle.prototype.draw = function(ctx) {
-  ctx.beginPath()
-  ctx.moveTo(this.a.x, this.a.y)
-  ctx.lineTo(this.b.x, this.b.y)
-  ctx.lineTo(this.c.x, this.c.y)
-  ctx.closePath()
-  ctx.stroke()
-}
+Triangle.prototype.draw = function(ctx,col,wire){
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(this.a.x, this.a.y);
+  ctx.lineTo(this.b.x, this.b.y);
+  ctx.lineTo(this.c.x, this.c.y);
+  ctx.closePath();
+  ctx.fillStyle = ctx.strokeStyle = col;
+  if (!wire) ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+};
 
 function byX(a, b) {
   return b.x - a.x
@@ -71,20 +75,20 @@ function dedup(edges) {
 function triangulate(vertices) {
   /* Bail if there aren't enough vertices to form any triangles. */
   if(vertices.length < 3)
-    return []
+    return [];
 
   /* Ensure the vertex array is in order of descending X coordinate
    * (which is needed to ensure a subquadratic runtime), and then find
    * the bounding box around the points. */
-  vertices.sort(byX)
+  vertices.sort(byX);
 
   var i    = vertices.length - 1,
       xmin = vertices[i].x,
       xmax = vertices[0].x,
       ymin = vertices[i].y,
-      ymax = ymin
+      ymax = ymin;
 
-  while(i--) {
+  while (i--) {
     if(vertices[i].y < ymin) ymin = vertices[i].y
     if(vertices[i].y > ymax) ymax = vertices[i].y
   }
@@ -111,7 +115,7 @@ function triangulate(vertices) {
       ],
       closed = [],
       edges = [],
-      j, a, b
+      j, a, b;
 
   /* Incrementally add each vertex to the mesh. */
   i = vertices.length
@@ -133,9 +137,8 @@ function triangulate(vertices) {
       }
 
       /* If not, skip this triangle. */
-      dy = vertices[i].y - open[j].y
-      if(dx * dx + dy * dy > open[j].r)
-        continue
+      dy = vertices[i].y - open[j].y;
+      if(dx * dx + dy * dy > open[j].r) continue;
 
       /* Remove the triangle and add it's edges to the edge list. */
       edges.push(
@@ -143,39 +146,39 @@ function triangulate(vertices) {
         open[j].b, open[j].c,
         open[j].c, open[j].a
       )
-      open.splice(j, 1)
+      open.splice(j, 1);
     }
 
     /* Remove any doubled edges. */
-    dedup(edges)
+    dedup(edges);
 
     /* Add a new triangle for each edge. */
-    j = edges.length
+    j = edges.length;
     while(j) {
-      b = edges[--j]
-      a = edges[--j]
-      open.push(new Triangle(a, b, vertices[i]))
+      b = edges[--j];
+      a = edges[--j];
+      open.push(new Triangle(a, b, vertices[i]));
     }
   }
 
   /* Copy any remaining open triangles to the closed list, and then
    * remove any triangles that share a vertex with the supertriangle. */
-  Array.prototype.push.apply(closed, open)
+  Array.prototype.push.apply(closed, open);
 
-  i = closed.length
+  i = closed.length;
   while(i--)
     if(closed[i].a.__sentinel ||
        closed[i].b.__sentinel ||
        closed[i].c.__sentinel)
-      closed.splice(i, 1)
+      closed.splice(i, 1);
 
   /* Yay, we're done! */
-  return closed
+  return closed;
 }
 
 if (typeof module !== 'undefined') {
-    module.exports = {
-        Triangle: Triangle,
-        triangulate: triangulate
-    }
+  module.exports = {
+    Triangle: Triangle,
+    triangulate: triangulate
+  }
 }
