@@ -7,33 +7,39 @@
     <canvas id="canvas" width="1024" height="1024">
     </canvas>
 
-    <script type="text/javascript" src="delaunay.js"></script>
+    <script type="text/javascript" src="delaunay.js">
+    </script>
+
     <script type="text/javascript">
       var canvas = document.getElementById("canvas"),
           ctx = canvas.getContext("2d"),
-          i = 2048,
-          vertices = new Array(i),
-          x, y
+          vertices = new Array(2048),
+          i, x, y;
 
-      while(i) {
+      for(i = vertices.length; i--; ) {
         do {
-          x = Math.random() - 0.5
-          y = Math.random() - 0.5
-        } while(x * x + y * y > 0.25)
+          x = Math.random() - 0.5;
+          y = Math.random() - 0.5;
+        } while(x * x + y * y > 0.25);
 
-        x = (x * 0.96875 + 0.5) * canvas.width
-        y = (y * 0.96875 + 0.5) * canvas.height
+        x = (x * 0.96875 + 0.5) * canvas.width;
+        y = (y * 0.96875 + 0.5) * canvas.height;
 
-        vertices[--i] = {x: x, y: y}
+        vertices[i] = [x, y];
       }
 
-      console.time("triangulate")
-      var triangles = triangulate(vertices)
-      console.timeEnd("triangulate")
+      console.time("triangulate");
+      var triangles = Delaunay.triangulate(vertices);
+      console.timeEnd("triangulate");
 
-      i = triangles.length
-      while(i)
-        triangles[--i].draw(ctx)
+      for(i = triangles.length; i; ) {
+        ctx.beginPath();
+        --i; ctx.moveTo(vertices[triangles[i]][0], vertices[triangles[i]][1]);
+        --i; ctx.lineTo(vertices[triangles[i]][0], vertices[triangles[i]][1]);
+        --i; ctx.lineTo(vertices[triangles[i]][0], vertices[triangles[i]][1]);
+        ctx.closePath();
+        ctx.stroke();
+      }
     </script>
   </body>
 </html>

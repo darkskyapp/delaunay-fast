@@ -1,181 +1,216 @@
-function Triangle(a, b, c) {
-  this.a = a
-  this.b = b
-  this.c = c
+var Delaunay;
 
-  var A = b.x - a.x,
-      B = b.y - a.y,
-      C = c.x - a.x,
-      D = c.y - a.y,
-      E = A * (a.x + b.x) + B * (a.y + b.y),
-      F = C * (a.x + c.x) + D * (a.y + c.y),
-      G = 2 * (A * (c.y - b.y) - B * (c.x - b.x)),
-      minx, miny, dx, dy
+(function() {
+  "use strict";
 
-  /* If the points of the triangle are collinear, then just find the
-   * extremes and use the midpoint as the center of the circumcircle. */
-  if(Math.abs(G) < 0.000001) {
-    minx = Math.min(a.x, b.x, c.x)
-    miny = Math.min(a.y, b.y, c.y)
-    dx   = (Math.max(a.x, b.x, c.x) - minx) * 0.5
-    dy   = (Math.max(a.y, b.y, c.y) - miny) * 0.5
+  function appendSupertriangleVertices(vertices) {
+    var xmin = Number.POSITIVE_INFINITY,
+        ymin = Number.POSITIVE_INFINITY,
+        xmax = Number.NEGATIVE_INFINITY,
+        ymax = Number.NEGATIVE_INFINITY,
+        i, dx, dy, dmax, xmid, ymid;
 
-    this.x = minx + dx
-    this.y = miny + dy
-    this.r = dx * dx + dy * dy
-  }
-
-  else {
-    this.x = (D*E - B*F) / G
-    this.y = (A*F - C*E) / G
-    dx = this.x - a.x
-    dy = this.y - a.y
-    this.r = dx * dx + dy * dy
-  }
-}
-
-Triangle.prototype.draw = function(ctx) {
-  ctx.beginPath()
-  ctx.moveTo(this.a.x, this.a.y)
-  ctx.lineTo(this.b.x, this.b.y)
-  ctx.lineTo(this.c.x, this.c.y)
-  ctx.closePath()
-  ctx.stroke()
-}
-
-function byX(a, b) {
-  return b.x - a.x
-}
-
-function dedup(edges) {
-  var j = edges.length,
-      a, b, i, m, n
-
-  outer: while(j) {
-    b = edges[--j]
-    a = edges[--j]
-    i = j
-    while(i) {
-      n = edges[--i]
-      m = edges[--i]
-      if((a === m && b === n) || (a === n && b === m)) {
-        edges.splice(j, 2)
-        edges.splice(i, 2)
-        j -= 2
-        continue outer
-      }
-    }
-  }
-}
-
-function triangulate(vertices) {
-  /* Bail if there aren't enough vertices to form any triangles. */
-  if(vertices.length < 3)
-    return []
-
-  /* Ensure the vertex array is in order of descending X coordinate
-   * (which is needed to ensure a subquadratic runtime), and then find
-   * the bounding box around the points. */
-  vertices.sort(byX)
-
-  var i    = vertices.length - 1,
-      xmin = vertices[i].x,
-      xmax = vertices[0].x,
-      ymin = vertices[i].y,
-      ymax = ymin
-
-  while(i--) {
-    if(vertices[i].y < ymin) ymin = vertices[i].y
-    if(vertices[i].y > ymax) ymax = vertices[i].y
-  }
-
-  /* Find a supertriangle, which is a triangle that surrounds all the
-   * vertices. This is used like something of a sentinel value to remove
-   * cases in the main algorithm, and is removed before we return any
-   * results.
-   *
-   * Once found, put it in the "open" list. (The "open" list is for
-   * triangles who may still need to be considered; the "closed" list is
-   * for triangles which do not.) */
-  var dx     = xmax - xmin,
-      dy     = ymax - ymin,
-      dmax   = (dx > dy) ? dx : dy,
-      xmid   = (xmax + xmin) * 0.5,
-      ymid   = (ymax + ymin) * 0.5,
-      open   = [
-        new Triangle(
-          {x: xmid - 20 * dmax, y: ymid -      dmax, __sentinel: true},
-          {x: xmid            , y: ymid + 20 * dmax, __sentinel: true},
-          {x: xmid + 20 * dmax, y: ymid -      dmax, __sentinel: true}
-        )
-      ],
-      closed = [],
-      edges = [],
-      j, a, b
-
-  /* Incrementally add each vertex to the mesh. */
-  i = vertices.length
-  while(i--) {
-    /* For each open triangle, check to see if the current point is
-     * inside it's circumcircle. If it is, remove the triangle and add
-     * it's edges to an edge list. */
-    edges.length = 0
-    j = open.length
-    while(j--) {
-      /* If this point is to the right of this triangle's circumcircle,
-       * then this triangle should never get checked again. Remove it
-       * from the open list, add it to the closed list, and skip. */
-      dx = vertices[i].x - open[j].x
-      if(dx > 0 && dx * dx > open[j].r) {
-        closed.push(open[j])
-        open.splice(j, 1)
-        continue
-      }
-
-      /* If not, skip this triangle. */
-      dy = vertices[i].y - open[j].y
-      if(dx * dx + dy * dy > open[j].r)
-        continue
-
-      /* Remove the triangle and add it's edges to the edge list. */
-      edges.push(
-        open[j].a, open[j].b,
-        open[j].b, open[j].c,
-        open[j].c, open[j].a
-      )
-      open.splice(j, 1)
+    for(i = vertices.length; i--; ) {
+      if(vertices[i][0] < xmin) xmin = vertices[i][0];
+      if(vertices[i][0] > xmax) xmax = vertices[i][0];
+      if(vertices[i][1] < ymin) ymin = vertices[i][1];
+      if(vertices[i][1] > ymax) ymax = vertices[i][1];
     }
 
-    /* Remove any doubled edges. */
-    dedup(edges)
+    dx = xmax - xmin;
+    dy = ymax - ymin;
+    dmax = Math.max(dx, dy);
+    xmid = xmin + dx * 0.5;
+    ymid = ymin + dy * 0.5;
 
-    /* Add a new triangle for each edge. */
-    j = edges.length
-    while(j) {
+    vertices.push(
+      [xmid - 20 * dmax, ymid -      dmax],
+      [xmid            , ymid + 20 * dmax],
+      [xmid + 20 * dmax, ymid -      dmax]
+    );
+  }
+
+  function triangle(vertices, i, j, k) {
+    var a = vertices[i],
+        b = vertices[j],
+        c = vertices[k],
+        A = b[0] - a[0],
+        B = b[1] - a[1],
+        C = c[0] - a[0],
+        D = c[1] - a[1],
+        E = A * (a[0] + b[0]) + B * (a[1] + b[1]),
+        F = C * (a[0] + c[0]) + D * (a[1] + c[1]),
+        G = 2 * (A * (c[1] - b[1]) - B * (c[0] - b[0])),
+        minx, miny, dx, dy, x, y;
+
+    /* If the points of the triangle are collinear, then just find the
+     * extremes and use the midpoint as the center of the circumcircle. */
+    if(Math.abs(G) < 0.000001) {
+      minx = Math.min(a[0], b[0], c[0])
+      miny = Math.min(a[1], b[1], c[1])
+      dx   = (Math.max(a[0], b[0], c[0]) - minx) * 0.5;
+      dy   = (Math.max(a[1], b[1], c[1]) - miny) * 0.5;
+      x    = minx + dx;
+      y    = miny + dy;
+    }
+
+    else {
+      x  = (D*E - B*F) / G;
+      y  = (A*F - C*E) / G;
+      dx = x - a[0]
+      dy = y - a[1]
+    }
+
+    return {i: i, j: j, k: k, x: x, y: y, r: dx * dx + dy * dy};
+  }
+
+  function dedup(edges) {
+    var j = edges.length,
+        a, b, i, m, n
+
+    outer: while(j) {
       b = edges[--j]
       a = edges[--j]
-      open.push(new Triangle(a, b, vertices[i]))
+      i = j
+      while(i) {
+        n = edges[--i]
+        m = edges[--i]
+        if((a === m && b === n) || (a === n && b === m)) {
+          edges.splice(j, 2)
+          edges.splice(i, 2)
+          j -= 2
+          continue outer
+        }
+      }
     }
   }
 
-  /* Copy any remaining open triangles to the closed list, and then
-   * remove any triangles that share a vertex with the supertriangle. */
-  Array.prototype.push.apply(closed, open)
+  Delaunay = {
+    triangulate: function(vertices, key) {
+      var n = vertices.length,
+          i, j, indices, open, closed, edges, dx, dy, a, b, c;
 
-  i = closed.length
-  while(i--)
-    if(closed[i].a.__sentinel ||
-       closed[i].b.__sentinel ||
-       closed[i].c.__sentinel)
-      closed.splice(i, 1)
+      /* Bail if there aren't enough vertices to form any triangles. */
+      if(n < 3)
+        return [];
 
-  /* Yay, we're done! */
-  return closed
-}
+      /* Slice out the actual vertices from the passed objects. (Duplicate the
+       * array even if we don't, though, since we need to make a supertriangle
+       * later on!) */
+      vertices = vertices.slice(0);
 
-if (typeof module !== 'undefined') {
-    module.exports = {
-        Triangle: Triangle,
-        triangulate: triangulate
+      if(key)
+        for(i = n; i--; )
+          vertices[i] = vertices[i][key];
+
+      /* Make an array of indices into the vertex array, sorted by the vertices'
+       * x-position. */
+      indices = new Array(n);
+
+      for(i = n; i--; )
+        indices[i] = i;
+
+      indices.sort(function(i, j) { return vertices[j][0] - vertices[i][0]; });
+
+      /* Next, find the vertices of the supertriangle (which contains all other
+       * triangles), and append them onto the end of a (copy of) the vertex
+       * array. */
+      appendSupertriangleVertices(vertices);
+      
+      /* Initialize the open list (containing the supertriangle and nothing else)
+       * and the closed list (which is empty since we havn't processed any
+       * triangles yet). */
+      open   = [triangle(vertices, n + 0, n + 1, n + 2)];
+      closed = [];
+      edges  = [];
+
+      /* Incrementally add each vertex to the mesh. */
+      for(i = indices.length; i--; ) {
+        c = indices[i];
+        edges.length = 0;
+
+        /* For each open triangle, check to see if the current point is
+         * inside it's circumcircle. If it is, remove the triangle and add
+         * it's edges to an edge list. */
+        for(j = open.length; j--; ) {
+          /* If this point is to the right of this triangle's circumcircle,
+           * then this triangle should never get checked again. Remove it
+           * from the open list, add it to the closed list, and skip. */
+          dx = vertices[c][0] - open[j].x;
+          if(dx > 0.0 && dx * dx > open[j].r) {
+            closed.push(open[j]);
+            open.splice(j, 1);
+            continue;
+          }
+
+          /* If we're outside the circumcircle, skip this triangle. */
+          dy = vertices[c][1] - open[j].y;
+          if(dx * dx + dy * dy > open[j].r)
+            continue;
+
+          /* Remove the triangle and add it's edges to the edge list. */
+          edges.push(
+            open[j].i, open[j].j,
+            open[j].j, open[j].k,
+            open[j].k, open[j].i
+          );
+          open.splice(j, 1);
+        }
+
+        /* Remove any doubled edges. */
+        dedup(edges);
+
+        /* Add a new triangle for each edge. */
+        for(j = edges.length; j; ) {
+          b = edges[--j];
+          a = edges[--j];
+          open.push(triangle(vertices, a, b, c));
+        }
+      }
+
+      /* Copy any remaining open triangles to the closed list, and then
+       * remove any triangles that share a vertex with the supertriangle, building
+       * a list of triplets that represent triangles. */
+      for(i = open.length; i--; )
+        closed.push(open[i]);
+      open.length = 0;
+
+      for(i = closed.length; i--; )
+        if(closed[i].i < n && closed[i].j < n && closed[i].k < n)
+          open.push(closed[i].i, closed[i].j, closed[i].k);
+
+      /* Yay, we're done! */
+      return open;
+    },
+    contains: function(tri, p) {
+      /* Bounding box test first, for quick rejections. */
+      if((p[0] < tri[0][0] && p[0] < tri[1][0] && p[0] < tri[2][0]) ||
+         (p[0] > tri[0][0] && p[0] > tri[1][0] && p[0] > tri[2][0]) ||
+         (p[1] < tri[0][1] && p[1] < tri[1][1] && p[1] < tri[2][1]) ||
+         (p[1] > tri[0][1] && p[1] > tri[1][1] && p[1] > tri[2][1]))
+        return null;
+
+      var a = tri[1][0] - tri[0][0],
+          b = tri[2][0] - tri[0][0],
+          c = tri[1][1] - tri[0][1],
+          d = tri[2][1] - tri[0][1],
+          i = a * d - b * c;
+
+      /* Degenerate tri. */
+      if(i === 0.0)
+        return null;
+
+      var u = (d * (p[0] - tri[0][0]) - b * (p[1] - tri[0][1])) / i,
+          v = (a * (p[1] - tri[0][1]) - c * (p[0] - tri[0][0])) / i;
+
+      /* If we're outside the tri, fail. */
+      if(u < 0.0 || v < 0.0 || (u + v) > 1.0)
+        return null;
+
+      return [u, v];
     }
-}
+  };
+
+  if(typeof module !== "undefined")
+    module.exports = Delaunay;
+})();
