@@ -3,7 +3,9 @@ var Delaunay;
 (function() {
   "use strict";
 
-  function appendSupertriangleVertices(vertices) {
+  var EPSILON = 1.0 / 1048576.0;
+
+  function supertriangle(vertices) {
     var xmin = Number.POSITIVE_INFINITY,
         ymin = Number.POSITIVE_INFINITY,
         xmax = Number.NEGATIVE_INFINITY,
@@ -23,63 +25,77 @@ var Delaunay;
     xmid = xmin + dx * 0.5;
     ymid = ymin + dy * 0.5;
 
-    vertices.push(
+    return [
       [xmid - 20 * dmax, ymid -      dmax],
       [xmid            , ymid + 20 * dmax],
       [xmid + 20 * dmax, ymid -      dmax]
-    );
+    ];
   }
 
-  function triangle(vertices, i, j, k) {
-    var a = vertices[i],
-        b = vertices[j],
-        c = vertices[k],
-        A = b[0] - a[0],
-        B = b[1] - a[1],
-        C = c[0] - a[0],
-        D = c[1] - a[1],
-        E = A * (a[0] + b[0]) + B * (a[1] + b[1]),
-        F = C * (a[0] + c[0]) + D * (a[1] + c[1]),
-        G = 2 * (A * (c[1] - b[1]) - B * (c[0] - b[0])),
-        minx, miny, dx, dy, x, y;
+  function circumcircle(vertices, i, j, k) {
+    var x1 = vertices[i][0],
+        y1 = vertices[i][1],
+        x2 = vertices[j][0],
+        y2 = vertices[j][1],
+        x3 = vertices[k][0],
+        y3 = vertices[k][1],
+        fabsy1y2 = Math.abs(y1 - y2),
+        fabsy2y3 = Math.abs(y2 - y3),
+        xc, yc, m1, m2, mx1, mx2, my1, my2, dx, dy;
 
-    /* If the points of the triangle are collinear, then just find the
-     * extremes and use the midpoint as the center of the circumcircle. */
-    if(Math.abs(G) < 0.000001) {
-      minx = Math.min(a[0], b[0], c[0])
-      miny = Math.min(a[1], b[1], c[1])
-      dx   = (Math.max(a[0], b[0], c[0]) - minx) * 0.5;
-      dy   = (Math.max(a[1], b[1], c[1]) - miny) * 0.5;
-      x    = minx + dx;
-      y    = miny + dy;
+    /* Check for coincident points */
+    if(fabsy1y2 < EPSILON && fabsy2y3 < EPSILON)
+      throw new Error("Eek! Coincident points!");
+
+    if(fabsy1y2 < EPSILON) {
+      m2  = -((x3 - x2) / (y3 - y2));
+      mx2 = (x2 + x3) / 2.0;
+      my2 = (y2 + y3) / 2.0;
+      xc  = (x2 + x1) / 2.0;
+      yc  = m2 * (xc - mx2) + my2;
+    }
+
+    else if(fabsy2y3 < EPSILON) {
+      m1  = -((x2 - x1) / (y2 - y1));
+      mx1 = (x1 + x2) / 2.0;
+      my1 = (y1 + y2) / 2.0;
+      xc  = (x3 + x2) / 2.0;
+      yc  = m1 * (xc - mx1) + my1;
     }
 
     else {
-      x  = (D*E - B*F) / G;
-      y  = (A*F - C*E) / G;
-      dx = x - a[0]
-      dy = y - a[1]
+      m1  = -((x2 - x1) / (y2 - y1));
+      m2  = -((x3 - x2) / (y3 - y2));
+      mx1 = (x1 + x2) / 2.0;
+      mx2 = (x2 + x3) / 2.0;
+      my1 = (y1 + y2) / 2.0;
+      my2 = (y2 + y3) / 2.0;
+      xc  = (m1 * mx1 - m2 * mx2 + my2 - my1) / (m1 - m2);
+      yc  = (fabsy1y2 > fabsy2y3) ?
+        m1 * (xc - mx1) + my1 :
+        m2 * (xc - mx2) + my2;
     }
 
-    return {i: i, j: j, k: k, x: x, y: y, r: dx * dx + dy * dy};
+    dx = x2 - xc;
+    dy = y2 - yc;
+    return {i: i, j: j, k: k, x: xc, y: yc, r: dx * dx + dy * dy};
   }
 
   function dedup(edges) {
-    var j = edges.length,
-        a, b, i, m, n
+    var i, j, a, b, m, n;
 
-    outer: while(j) {
-      b = edges[--j]
-      a = edges[--j]
-      i = j
-      while(i) {
-        n = edges[--i]
-        m = edges[--i]
+    for(j = edges.length; j; ) {
+      b = edges[--j];
+      a = edges[--j];
+
+      for(i = j; i; ) {
+        n = edges[--i];
+        m = edges[--i];
+
         if((a === m && b === n) || (a === n && b === m)) {
-          edges.splice(j, 2)
-          edges.splice(i, 2)
-          j -= 2
-          continue outer
+          edges.splice(j, 2);
+          edges.splice(i, 2);
+          break;
         }
       }
     }
@@ -88,7 +104,7 @@ var Delaunay;
   Delaunay = {
     triangulate: function(vertices, key) {
       var n = vertices.length,
-          i, j, indices, open, closed, edges, dx, dy, a, b, c;
+          i, j, indices, st, open, closed, edges, dx, dy, a, b, c;
 
       /* Bail if there aren't enough vertices to form any triangles. */
       if(n < 3)
@@ -103,31 +119,33 @@ var Delaunay;
         for(i = n; i--; )
           vertices[i] = vertices[i][key];
 
-      /* Make an array of indices into the vertex array, sorted by the vertices'
-       * x-position. */
+      /* Make an array of indices into the vertex array, sorted by the
+       * vertices' x-position. */
       indices = new Array(n);
 
       for(i = n; i--; )
         indices[i] = i;
 
-      indices.sort(function(i, j) { return vertices[j][0] - vertices[i][0]; });
+      indices.sort(function(i, j) {
+        return vertices[j][0] - vertices[i][0];
+      });
 
       /* Next, find the vertices of the supertriangle (which contains all other
        * triangles), and append them onto the end of a (copy of) the vertex
        * array. */
-      appendSupertriangleVertices(vertices);
+      st = supertriangle(vertices);
+      vertices.push(st[0], st[1], st[2]);
       
-      /* Initialize the open list (containing the supertriangle and nothing else)
-       * and the closed list (which is empty since we havn't processed any
-       * triangles yet). */
-      open   = [triangle(vertices, n + 0, n + 1, n + 2)];
+      /* Initialize the open list (containing the supertriangle and nothing
+       * else) and the closed list (which is empty since we havn't processed
+       * any triangles yet). */
+      open   = [circumcircle(vertices, n + 0, n + 1, n + 2)];
       closed = [];
       edges  = [];
 
       /* Incrementally add each vertex to the mesh. */
-      for(i = indices.length; i--; ) {
+      for(i = indices.length; i--; edges.length = 0) {
         c = indices[i];
-        edges.length = 0;
 
         /* For each open triangle, check to see if the current point is
          * inside it's circumcircle. If it is, remove the triangle and add
@@ -145,7 +163,7 @@ var Delaunay;
 
           /* If we're outside the circumcircle, skip this triangle. */
           dy = vertices[c][1] - open[j].y;
-          if(dx * dx + dy * dy > open[j].r)
+          if(dx * dx + dy * dy - open[j].r > EPSILON)
             continue;
 
           /* Remove the triangle and add it's edges to the edge list. */
@@ -164,13 +182,13 @@ var Delaunay;
         for(j = edges.length; j; ) {
           b = edges[--j];
           a = edges[--j];
-          open.push(triangle(vertices, a, b, c));
+          open.push(circumcircle(vertices, a, b, c));
         }
       }
 
       /* Copy any remaining open triangles to the closed list, and then
-       * remove any triangles that share a vertex with the supertriangle, building
-       * a list of triplets that represent triangles. */
+       * remove any triangles that share a vertex with the supertriangle,
+       * building a list of triplets that represent triangles. */
       for(i = open.length; i--; )
         closed.push(open[i]);
       open.length = 0;
