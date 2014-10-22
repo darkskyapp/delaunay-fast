@@ -15,10 +15,6 @@ really.)
 [3]: http://www.travellermap.com/tmp/delaunay.htm
 [4]: http://forecast.io/
 
-Notably, it runs in subquadratic time, making it the fastest JavaScript
-implementation of which I'm aware. (Okay, it doesn't really, but it'd be
-trivial to modify to run in subquadratic time, I just havn't done so yet.)
-
 License
 -------
 
@@ -26,3 +22,12 @@ To the extend possible by law, I have [waived all copyright and related
 or neighboring rights][cc0] to this library.
 
 [cc0]: http://creativecommons.org/publicdomain/zero/1.0/
+
+Related
+-------
+
+*   [@yahiko00][5] has released a [TypeScript interface][6] that may be useful
+    if you are trying to access this library from TypeScript.
+
+[5]: https://github.com/yahiko00
+[6]: https://github.com/yahiko00/delaunay
