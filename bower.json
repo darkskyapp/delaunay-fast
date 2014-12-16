@@ -1,0 +1,27 @@
+{
+  "name": "delaunay-fast",
+  "main": "delaunay.js",
+  "version": "1.0.1",
+  "homepage": "https://github.com/ironwallaby/delaunay",
+  "authors": [
+    "J. T. L."
+  ],
+  "description": "Fast Delaunay Triangulation in JavaScript",
+  "moduleType": [
+    "globals",
+    "node"
+  ],
+  "keywords": [
+    "delaunay",
+    "triangulation",
+    "geometry"
+  ],
+  "license": "BSD",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
