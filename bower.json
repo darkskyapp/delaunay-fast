@@ -16,7 +16,7 @@
     "triangulation",
     "geometry"
   ],
-  "license": "BSD",
+  "license": "CC0",
   "ignore": [
     "**/.*",
     "node_modules",
