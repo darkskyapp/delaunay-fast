@@ -10,6 +10,11 @@ indices into the passed array. (This representation is a little bizarre, but
 object allocation is too slow for this library's [original use case][4]. Yes,
 really.)
 
+Beware of using vertices that are too close to each other (say, within 0.01 on
+either axis): numerical precision issues may result, causing your mesh to be
+invalid. (If you encounter this, simply multiply each of your vertices'
+positions by a constant factor.)
+
 [1]: http://en.wikipedia.org/wiki/Delaunay_triangulation
 [2]: http://paulbourke.net/papers/triangulate/
 [3]: http://www.travellermap.com/tmp/delaunay.htm
