@@ -120,14 +120,16 @@ var Delaunay;
           vertices[i] = vertices[i][key];
 
       /* Make an array of indices into the vertex array, sorted by the
-       * vertices' x-position. */
+       * vertices' x-position. Force stable sorting by comparing indices if
+       * the x-positions are equal. */
       indices = new Array(n);
 
       for(i = n; i--; )
         indices[i] = i;
 
       indices.sort(function(i, j) {
-        return vertices[j][0] - vertices[i][0];
+        var diff = vertices[j][0] - vertices[i][0];
+        return diff !== 0 ? diff : i - j;
       });
 
       /* Next, find the vertices of the supertriangle (which contains all other
